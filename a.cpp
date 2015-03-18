@@ -2,8 +2,9 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
-#include <ncurses.h>
 #include <cstdlib>
+#include <termios.h>
+#include <unistd.h>
 using namespace std;
 #pragma warning ( disable : 4996 )
 #pragma warning ( disable : 4242 )
@@ -29,6 +30,9 @@ typedef struct {
     int color, sequence;
 } Cell;
 typedef vector<vector<Cell> > Board;
+struct point {
+    int y,x;
+};
 
 Board initBoardStatus(int N,int M);
 void render(Board board);
@@ -98,12 +102,56 @@ void printBoard(Board board) {
         puts("");
     }
 }
-int main() {
+int getch() {
+    struct termios oldt,
+                   newt;
+    int ch;
+    tcgetattr( STDIN_FILENO, &oldt );
+    newt = oldt;
+    newt.c_lflag &= ~( ICANON | ECHO );
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt );
+    ch = getchar();
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt );
+    return ch;
+}
+enum { PLAY,QUIT };
+int menu() {
+    system("clear");
+    printf("............OO.............mmmmmmmm.............\n");
+    printf("..........o....o...........m......m.............\n");
+    printf("..........o....o...........m......m.............\n");
+    printf("..........o....o...........m......m.............\n");
+    printf("............OO.............mmmmmmmm.............\n");
+    printf("............OO................mm................\n");
+    printf(".......ooooooooooOO........mmmmmmmm.............\n");
+    printf("..............................mm................\n");
+    printf("...........................mmmmmmmm.............\n");
+    printf("..................................m.............\n");
+    printf("..................................m.............\n");
+    puts("");
+    printf("1. play game? study?\n");
+    puts("");
+    printf("2. exit\n");
+    puts("");
+    char ch = getch();
+    return ch-'0'-1;
+}
+void gamePlay() {
     Board board = initBoardStatus(HEIGHT,WIDTH);
-    board[1][1].owner = board[1][1].color = WHITE;
-    board[2][1].owner = board[2][1].color = BLACK;
+    while ( true ) {
+        render(board);
+    }
+}
+int main() {
+    int exit = 0;
 
-    render(board);
-
+    while ( ~exit ) {
+        switch ( menu() ) {
+            case PLAY:gamePlay(); break;
+            case QUIT:exit = -1; break;
+            default: break;
+        }
+    }
+    system("clear");
     return 0;
 }
