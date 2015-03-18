@@ -121,6 +121,10 @@ int getch() {
 enum { PLAY,QUIT };
 int menu() {
     system("clear");
+    puts("");
+    printf("................................................\n");
+    printf("................................................\n");
+    printf("................................................\n");
     printf("............OO.............mmmmmmmm.............\n");
     printf("..........o....o...........m......m.............\n");
     printf("..........o....o...........m......m.............\n");
@@ -132,6 +136,9 @@ int menu() {
     printf("...........................mmmmmmmm.............\n");
     printf("..................................m.............\n");
     printf("..................................m.............\n");
+    printf("................................................\n");
+    printf("......................Created By Sangkeun Kim...\n");
+    printf("................................................\n");
     puts("");
     printf("\t\t1. play game? study?\n");
     puts("");
@@ -152,25 +159,109 @@ void printStonesData(vector<point> stones) {
         printf("%s%d",i==0?"":",",stones[i].y);
     printf("};\n");
 }
+int dfs(Board board,int y,int x,int dy,int dx) {
+    return 1 + (board[y+dy][x+dx].owner == board[y][x].owner ? 
+        dfs(board,y+dy,x+dx,dy,dx) : 0);
+}
+int getWinner(Board board,int y,int x) {
+    static const int dx[] = { 0, 0, 1,-1, 1,-1, 1,-1 },
+                 dy[] = { 1,-1, 0, 0, 1,-1,-1, 1 };
+    for ( int i = 0 ; i < 8 ; i+= 2) {
+        int cur = 0;
+        int ny = y + dy[i];
+        int nx = x + dx[i];
+        if ( board[y][x].owner == board[ny][nx].owner ) 
+            cur += dfs(board,ny,nx,dy[i],dx[i]);
+        ny = y+dy[i+1];
+        nx = x+dx[i+1];
+        if ( board[y][x].owner == board[ny][nx].owner ) 
+            cur += dfs(board,ny,nx,dy[i+1],dx[i+1]);
+        if ( cur == 4 ) return board[y][x].owner;
+    }
+    return -1;
+}
+int dfs_33(Board board,int y,int x,int dy,int dx,int len) {
+    if ( len == 1 ) return (board[y+dy][x+dx].owner == -1);
+    return 1 + (board[y+dy][x+dx].owner == board[y][x].owner ?
+            dfs_33(board,y+dy,x+dx,dy,dx,len-1):0);
+}
+bool check_33(Board board,int y,int x) {
+    static const int dx[] = { 0, 0, 1,-1, 1,-1, 1,-1 },
+                 dy[] = { 1,-1, 0, 0, 1,-1,-1, 1 };
+    int tot3 = 0;
+    for ( int i = 0 ; i < 8 ; i+=2 ) {
+        if ( board[y][x].owner == board[y+dy[i]][x+dx[i]].owner &&
+                board[y][x].owner == board[y-dy[i]][x-dx[i]].owner ) 
+            tot3 += ( (dfs_33(board,y-dy[i],x-dx[i],-dy[i],-dx[i],1) == 1) &&
+                      (dfs_33(board,y+dy[i],x+dx[i],dy[i],dx[i],1) == 1) );
+    }
+    for ( int i = 0 ; i < 8 ; i++ ) {
+        if ( board[y][x].owner == board[y+dy[i]][x+dx[i]].owner ) 
+            tot3 += ( ( (dfs_33(board,y+dy[i],x+dx[i],dy[i],dx[i],2) == 2) &&
+                        board[y-dy[i]][x-dx[i]].owner == -1) );
+    }
+    return tot3 > 1;
+}
+bool if_33(Board board,int y,int x,vector<vector<bool> >& vis) {
+    static const int dx[] = { 0, 0, 1,-1, 1,-1, 1,-1, 0 },
+                 dy[] = { 1,-1, 0, 0, 1,-1,-1, 1, 0 };
+    vis[y][x] = true;
+    for ( int i = 0 ; i < 8 ; i++ ) {
+        if ( board[y+dy[i]][x+dx[i]].owner == board[y][x].owner ) 
+            if ( !vis[y+dy[i]][x+dx[i]] ) 
+                if ( if_33(board,y+dy[i],x+dx[i],vis) ) 
+                    return true;
+    }
+    for ( int i = 0 ; i < 9 ; i++ ) 
+        if ( board[y+dy[i]][x+dx[i]].owner == board[y][x].owner ) 
+            if ( check_33(board,y+dy[i],x+dx[i]) )
+                return true;
+    return false;
+}
+void printStoneStatus(vector<point>& stones) {
+    FILE *fp = fopen("StoneStatus.txt","w");
+    fprintf(fp,"%d\n",(int)stones.size());
+    for ( int i = 0 ; i < (int)stones.size() ; i++ )
+        fprintf(fp,"%d %d\n",stones[i].x,stones[i].y);
+    fclose(fp);
+}
 void gamePlay() {
     Board board = initBoardStatus(HEIGHT,WIDTH);
     vector<point> stones;
-    for ( int seq = 1, turn = 0 ; ; seq++, turn ^= 1 ) {
+    string lastFileName[2]={"",""};
+    bool isNotEnd = true;
+    for ( int seq = 1, turn = 0 ; isNotEnd ; seq++, turn ^= 1 ) {
         render(board);
         printf("현재 %s의 %d번째 턴입니다.\n",turn==WHITE?"WHITE":"BLACK",seq);
         printStonesData(stones);
+        printf("StoneStatus.txt 파일에 돌의 정보가 저장되어있습니다.\n");
         printf("\ncode를 %s%d.cpp에 다 작성하셨으면 enter를 눌러주세요.\n",turn==WHITE?"WHITE":"BLACK",seq);
+        printf("이전에 사용했던 코드(%s)를 사용하시려면 a를 눌러주세요.\n",(int)lastFileName[turn].length()==0?"Nop":lastFileName[turn].c_str());
         printf("출력 양식: 좌표값을 x y 의 형식으로 출력한다.\n");
         printf("예제 출력: 2 5\n");
+
         while ( true ) {
             char ch = getch();
             if ( ch == 'q' ) {
                 system("clear");
                 printf("\n\t\tGame Quit\n\n");
+                stones.clear();
+                printStoneStatus(stones);
                 exit(-1);
             }
             char filename[1024];
-            sprintf(filename,"%s%d",turn==WHITE?"WHITE":"BLACK",seq);
+            if ( ch == 'a' ) {
+                if ( (int)lastFileName[turn].length() == 0 ) {
+                    printf("error] this turn is first turn\n");
+                    continue;
+                }
+                sprintf(filename,"%s",lastFileName[turn].c_str());
+            } else {
+                sprintf(filename,"%s%d",turn==WHITE?"WHITE":"BLACK",seq);
+            }
+            if ( ch != 'a' && ch != 10 ) {
+                continue;
+            }
             string command = "g++ "+string(filename)+".cpp -o "+string(filename);
             system(command.c_str());
             FILE * fp = fopen(string(string(filename)+".cpp").c_str(),"r");
@@ -187,6 +278,7 @@ void gamePlay() {
                 printf("error] compile fail\n");
                 continue;
             } else {
+                lastFileName[turn] = string(filename);
                 char buf[1024]={};
                 fscanf(fp,"%[^\n]\n",buf);
                 vector<int> v;
@@ -206,16 +298,41 @@ void gamePlay() {
                     continue;
                 }
                 if ( board[ny][nx].owner != -1 ) {
-                    printf("error] is exists stone in position (%d,%d)\n",ny,nx);
+                    printf("error] is exists stone in position (%d,%d)\n",nx,ny);
                     continue;
                 }
-                board[v[1]][v[0]].owner = board[v[1]][v[0]].color = turn;
+                vector<vector<bool> > vis;
+                for ( int i = 0 ; i < HEIGHT+2 ; i++ ) {
+                    vector<bool> t;
+                    for ( int j = 0 ; j < WIDTH+2 ; j++ ) 
+                        t.push_back(false);
+                    vis.push_back(t);
+                }
+                board[ny][nx].owner = board[ny][nx].color = turn;
+                board[ny][nx].sequence = seq;
+                if ( if_33(board,ny,nx,vis) ) {
+                    printf("error] 3*3 \n");
+                    board[ny][nx].owner = board[ny][nx].color = -1;
+                    board[ny][nx].sequence = 0;
+                    continue;
+                }
                 stones.push_back(point(v[1],v[0]));
+                printStoneStatus(stones);
+
+                if ( getWinner(board,ny,nx) == turn ) {
+                    render(board);
+                    printf("%s is winner!\n",turn==WHITE?"WHITE":"BLACK");
+                    isNotEnd = false;
+                    ch = getch();
+                    break;
+                }
                 fclose(fp);
                 break;
             }
         }
     }
+    stones.clear();
+    printStoneStatus(stones);
 }
 int main() {
     int exit = 0;
