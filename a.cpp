@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <string>
 #include <cstring>
 #include <vector>
 #include <algorithm>
@@ -23,8 +24,8 @@ using namespace std;
 #define ENTER_KEY 22
 #define ESC_KEY 23
 
-enum { WHITE,BLACK };
-const char *Stone[]={"○","●"};
+enum { BLACK,WHITE };
+const char *Stone[]={"●","○"};
 typedef struct {
     int owner;
     int color, sequence;
@@ -32,6 +33,9 @@ typedef struct {
 typedef vector<vector<Cell> > Board;
 struct point {
     int y,x;
+    point(){};
+    point(int y,int x):
+        y (y), x (x){}
 };
 
 Board initBoardStatus(int N,int M);
@@ -129,17 +133,88 @@ int menu() {
     printf("..................................m.............\n");
     printf("..................................m.............\n");
     puts("");
-    printf("1. play game? study?\n");
+    printf("\t\t1. play game? study?\n");
     puts("");
-    printf("2. exit\n");
+    printf("\t\t2. exit\n");
     puts("");
     char ch = getch();
     return ch-'0'-1;
 }
+void printStonesData(vector<point> stones) {
+    printf("현재 놓여진 돌의 정보\n");
+    printf("int n = %d;\n",(int)stones.size());
+    printf("int x[]={");
+    for ( int i = 0 ; i < (int)stones.size() ; i++ ) 
+        printf("%s%d",i==0?"":",",stones[i].x);
+    printf("};\n");
+    printf("int y[]={");
+    for ( int i = 0 ; i < (int)stones.size() ; i++ ) 
+        printf("%s%d",i==0?"":",",stones[i].y);
+    printf("};\n");
+}
 void gamePlay() {
     Board board = initBoardStatus(HEIGHT,WIDTH);
-    while ( true ) {
+    vector<point> stones;
+    for ( int seq = 1, turn = 0 ; ; seq++, turn ^= 1 ) {
         render(board);
+        printf("현재 %s의 %d번째 턴입니다.\n",turn==WHITE?"WHITE":"BLACK",seq);
+        printStonesData(stones);
+        printf("\ncode를 %s%d.cpp에 다 작성하셨으면 enter를 눌러주세요.\n",turn==WHITE?"WHITE":"BLACK",seq);
+        printf("출력 양식: 좌표값을 x y 의 형식으로 출력한다.\n");
+        printf("예제 출력: 2 5\n");
+        while ( true ) {
+            char ch = getch();
+            if ( ch == 'q' ) {
+                system("clear");
+                printf("\n\t\tGame Quit\n\n");
+                exit(-1);
+            }
+            char filename[1024];
+            sprintf(filename,"%s%d",turn==WHITE?"WHITE":"BLACK",seq);
+            string command = "g++ "+string(filename)+".cpp -o "+string(filename);
+            system(command.c_str());
+            FILE * fp = fopen(string(string(filename)+".cpp").c_str(),"r");
+            if ( fp == NULL ) {
+                printf("error] cpp file is not exists!\n");
+                continue;
+            }
+            fclose(fp);
+            command = "./"+string(filename)+" > tmp";
+            system(command.c_str());
+
+            fp = fopen("tmp","r");
+            if ( fp == NULL ) {
+                printf("error] compile fail\n");
+                continue;
+            } else {
+                char buf[1024]={};
+                fscanf(fp,"%[^\n]\n",buf);
+                vector<int> v;
+                for ( char *p = strtok(buf," \t") ; p ; p = strtok(NULL," \t") ) {
+                    int t;
+                    sscanf(p,"%d",&t);
+                    v.push_back(t);
+                }
+                if ( (int)v.size() != 2 ) {
+                    printf("error] print format is not correct!\n");
+                    continue;
+                }
+                int ny = v[1];
+                int nx = v[0];
+                if ( ny < 0 || nx < 0 || ny >= HEIGHT || nx >= WIDTH ) {
+                    printf("error] your position is outside the board\n");
+                    continue;
+                }
+                if ( board[ny][nx].owner != -1 ) {
+                    printf("error] is exists stone in position (%d,%d)\n",ny,nx);
+                    continue;
+                }
+                board[v[1]][v[0]].owner = board[v[1]][v[0]].color = turn;
+                stones.push_back(point(v[1],v[0]));
+                fclose(fp);
+                break;
+            }
+        }
     }
 }
 int main() {
