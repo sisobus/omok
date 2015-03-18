@@ -41,6 +41,16 @@ struct point {
 Board initBoardStatus(int N,int M);
 void render(Board board);
 void printBoard(Board board);
+int getch();
+int menu();
+void printStonesData(vector<point> stones);
+int dfs(Board board,int y,int x,int dy,int dx);
+int getWinner(Board board,int y,int x);
+int dfs_33(Board board,int y,int x,int dy,int dx,int len);
+bool check_33(Board board,int y,int x);
+bool if_33(Board board,int y,int x,vector<vector<bool> >& vis);
+void printStoneStatus(vector<point>& stones);
+void gamePlay() ;
 
 Board initBoardStatus(int N,int M) {
     Board ret;
